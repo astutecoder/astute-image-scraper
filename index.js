@@ -2,21 +2,27 @@ const puppet = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
 
+// search url
  const url = 'https://www.google.com/search?q=plastic+bottles&rlz=1C1GGRV_enBD846BD846&source=lnms&tbm=isch&sa=X&ved=0ahUKEwjBgOOEztfjAhUaSY8KHXQgCycQ_AUIESgB';
 
- const speed = 100;
+ // path to the image folder
+ // please make sure you have created the folder first
+ const image_folder_path = 'storage/plastic bottle';
 
- (async () => {
+ // delay between to clicks, smaller value scraps fast but return less image
+ // try to set the value  between 100 - 500
+ const click_delay = 100; // miliseconds
+
+(async () => {
     try {
         const browser = await puppet.launch({ headless: false, defaultViewport: null });
         const page = await browser.newPage();
     
         await page.goto(url, { waitUntil: 'networkidle2'});
-    
-        // const scrollComplete =  await timeout();
 
         console.info('starting scraping');
 
+        console.time('evaluating: ');
         let images = await page.evaluate(async (delayDuration) => {
             const timeout  = () => (new Promise(function(resolve){
                     let interval = setInterval(function(){
@@ -38,6 +44,7 @@ const request = require('request');
 
             if(await timeout() === 'done'){
                 window.scrollTo(0,0);
+
                 function makeDelay(t = 10) {
                     return new Promise(resolve => {
                         setTimeout(() => {
@@ -45,8 +52,8 @@ const request = require('request');
                         }, t);
                     })
                 }
+
                 const imageBoxes = Array.from(document.getElementsByClassName('rg_ic'));
-                console.log(imageBoxes.length);
                 let i = 1;
                 let imgSrc = [];
                 async function makeClick(item) {                    
@@ -64,33 +71,35 @@ const request = require('request');
                 let images = await imgSrc.filter((item, id)=>{
                     return item !== null && (imgSrc.indexOf(item) === id);
                 })
-                console.log(images);
                 return await images;
             }
-        }, speed);
-        console.info('found '+images.length)+ ' unique images';
+        }, click_delay);
+        console.timeEnd('evaluating: ');
+        console.info('found '+ images.length + ' unique images');
         
-        await browser.close();    
-
-        
-        var download = async function(uri){
-            var file_name = uri.split('/').pop().split('?').shift();
-            await request.get(uri)
-                .on('error', function(e) {console.dir(e)})
-                .pipe(fs.createWriteStream('storage/'+file_name))
-                .on('close', () => {
-                    console.log('download complete:', file_name);
-                })
-        };        
-        
-        // download('https://inhabitat.com/wp-content/blogs.dir/1/files/2018/03/bottled-water-plastics-study.jpg', 'file_a');
+        var download = async function(uri, index){
+            // var file_name = index +'_'+ uri.split('/').pop().split('?').shift();
+            var file_name = index +'.jpg';
+            request.get(uri)
+                .on('error', (e) => console.dir(e) )
+                .pipe(fs.createWriteStream(image_folder_path+'/'+file_name))
+                .on('close', () => console.log('download complete:', file_name))            
+        };
         
         console.info('starting to download images');
         
-        for(image of images){
-            await download(image);
+        async function storeImage(msg)
+        {
+            let i = 1;
+            for(image of images){
+                await download(image, i);
+                i++;
+            }
+            console.info(msg)
         }
-        console.info('scraping complete');
+        await storeImage('Scraping complete. Please wait for event completion.')
+
+        await browser.close();
     } catch(err) {
         console.dir(err);
     }
