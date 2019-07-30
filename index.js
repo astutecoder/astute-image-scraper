@@ -1,12 +1,42 @@
 const puppet = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
+const io = require('console-read-write');
 
 const user_defined = require('./settings');
+
+let showInputInfo = async (settings) => {
+    user_defined.boxInfo('Your settings are as follows:', 1, '.',';');
+    io.write('');
+    io.write('{');
+    io.write(' "Search URL": "' + settings.url + '"');
+    io.write(' "Image Folder": "' + settings.path + '"');
+    io.write(' "Image File Prefix": "' + settings.prefix + '"');
+    io.write(' "Image File Name Start From": ' + settings.start_from);
+    io.write(' "Download Limit (quantity)": ' + settings.download_limit);
+    io.write('}')
+}
+let askConfirmation = async () => {
+    let confirmation = (await await io.ask('Is it ok? (Y/N)')).toLowerCase();
+        
+    while(!confirmation || !confirmation.match(/^(n|no|y|yes)$/) ){
+        confirmation = await io.ask('Is it ok? (Y/N)');
+    }
+    return confirmation;
+}
 
 (async () => {
     try {
         let settings = await user_defined.settings();
+        showInputInfo(settings);
+        let confirmation = await askConfirmation();
+        while(confirmation.toLowerCase().match(/^(n|no)$/) && !confirmation.toLowerCase().match(/^(y|yes)$/)){
+            user_defined.boxInfo('Enter settings info one more time', 1, '-')
+            settings = await user_defined.settings();
+            showInputInfo(settings);
+            confirmation = await askConfirmation();            
+        }         
+
         const browser = await puppet.launch(
             {
                 defaultViewport: {
@@ -77,6 +107,6 @@ const user_defined = require('./settings');
         }
 
     } catch(err) {
-        console.error(err.message);
+        user_defined.boxInfo(err.message, '1', "x");
     }
 })();
