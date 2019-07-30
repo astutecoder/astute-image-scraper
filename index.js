@@ -1,11 +1,12 @@
-const user_defined = require('./settings');
-
 const puppet = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
 
+const user_defined = require('./settings');
+
 (async () => {
     try {
+        let settings = await user_defined.settings();
         const browser = await puppet.launch(
             {
                 defaultViewport: {
@@ -15,9 +16,9 @@ const request = require('request');
             }
         );
         const page = await browser.newPage();    
-        await page.goto(user_defined.settings.url, { waitUntil: 'networkidle2'});
+        await page.goto(settings.url, { waitUntil: 'networkidle2'});
 
-        console.info('Scraping started. Please wait...');
+        user_defined.boxInfo('Scraping started. Please wait...', 2, '=') 
 
         let imageSrc = await page.evaluate(async () => {
             let infiniteScroll = () => {
@@ -52,28 +53,30 @@ const request = require('request');
         });
         await browser.close();
 
+        user_defined.boxInfo('Total '+ imageSrc.length + ' images found', 2, '!', ';');
+
         let download = (uri, file_prefix = '', start_number = 1) => {
             let file_name_with_prefix = file_prefix + '_' + start_number + '.jpg';
             let file_name_without_prefix = start_number + '.jpg';
             let file_name = file_prefix ? file_name_with_prefix : file_name_without_prefix;
 
             request.get(uri)
-                .on('error', (e) => console.dir(e) )
-                .pipe(fs.createWriteStream(user_defined.settings.path + '/' + file_name))
+                .on('error', (e) => user_defined.boxInfo(e.message, 1, 'x') )
+                .pipe(fs.createWriteStream(settings.path + '/' + file_name))
                 .on('close', () => console.log('download complete:', file_name))            
         };
 
         let downloaded = 1;
         for(image of imageSrc){
-            await download(image, user_defined.settings.prefix, user_defined.settings.start_from);
+            await download(image, settings.prefix, settings.start_from);
             
-            if(downloaded === user_defined.settings.download_limit) break;
+            if(downloaded === settings.download_limit) break;
             
-            user_defined.settings.start_from++;
+            settings.start_from++;
             downloaded++;
         }
 
     } catch(err) {
-        console.error(err);
+        console.error(err.message);
     }
 })();
