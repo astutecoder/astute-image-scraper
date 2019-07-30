@@ -9,11 +9,11 @@ let showInputInfo = async (settings) => {
     user_defined.boxInfo('Your settings are as follows:', 1, '.',';');
     io.write('');
     io.write('{');
-    io.write(' "Search URL": "' + settings.url + '"');
     io.write(' "Image Folder": "' + settings.path + '"');
     io.write(' "Image File Prefix": "' + settings.prefix + '"');
     io.write(' "Image File Name Start From": ' + settings.start_from);
-    io.write(' "Download Limit (quantity)": ' + settings.download_limit);
+    io.write(' "Download Limit (quantity)": ' + (settings.download_limit ? settings.download_limit : '"No Limit"'));
+    io.write(' "Search URL": "' + settings.url + '"');
     io.write('}')
 }
 let askConfirmation = async () => {
@@ -83,7 +83,7 @@ let askConfirmation = async () => {
         });
         await browser.close();
 
-        user_defined.boxInfo('Total '+ imageSrc.length + ' images found', 2, '!', ';');
+        user_defined.boxInfo('Total '+ imageSrc.length + ' images found', 1, '!', '¡');
 
         let download = (uri, file_prefix = '', start_number = 1) => {
             let file_name_with_prefix = file_prefix + '_' + start_number + '.jpg';
