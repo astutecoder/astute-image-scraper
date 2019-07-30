@@ -1,8 +1,9 @@
 const user_defined = require('./settings');
+
 const puppet = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
-console.log(user_defined);
+
 (async () => {
     try {
         const browser = await puppet.launch(
@@ -16,7 +17,7 @@ console.log(user_defined);
         const page = await browser.newPage();    
         await page.goto(user_defined.settings.url, { waitUntil: 'networkidle2'});
 
-        console.info('scraping started');
+        console.info('Scraping started. Please wait...');
 
         let imageSrc = await page.evaluate(async () => {
             let infiniteScroll = () => {
@@ -51,7 +52,7 @@ console.log(user_defined);
         });
         await browser.close();
 
-        let download = async function(uri, file_prefix = '', start_number = 1){
+        let download = (uri, file_prefix = '', start_number = 1) => {
             let file_name_with_prefix = file_prefix + '_' + start_number + '.jpg';
             let file_name_without_prefix = start_number + '.jpg';
             let file_name = file_prefix ? file_name_with_prefix : file_name_without_prefix;
@@ -65,12 +66,14 @@ console.log(user_defined);
         let downloaded = 1;
         for(image of imageSrc){
             await download(image, user_defined.settings.prefix, user_defined.settings.start_from);
-            user_defined.settings.start_from++;
+            
             if(downloaded === user_defined.settings.download_limit) break;
+            
+            user_defined.settings.start_from++;
             downloaded++;
         }
 
     } catch(err) {
-        console.dir(err);
+        console.error(err);
     }
 })();
