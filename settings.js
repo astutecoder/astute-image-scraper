@@ -3,7 +3,7 @@ const io = require('console-read-write');
 const fs = require('fs');
 
 let multiLevelFolder = (path) => {
-    let segments = path.split('/').map( segment => segment.replace(/[\\\/\:\*\?\"\<\>\|]{1,}/, '') );
+    let segments = path.split('/').map( segment => segment.replace(/[\\\/\:\*\?\"\<\>\|]{1,}/, '').trim() );
     for (let i = 0; i < segments.length; i++) {
         let folder = segments.slice(0, (i+1)).join('/');
         if (!fs.existsSync(folder)){
@@ -21,9 +21,9 @@ let inputs = async () => {
     }
     multiLevelFolder(image_folder_path);
     
-    let name_prefix = await io.ask('File name prifix? [ you can skip this :) ]');
-    let start_number = await io.ask('File number to start from: ');
-    let max_download = await io.ask('Download limit: [ maximum number of files]');
+    let name_prefix = await io.ask('File name prifix? (optional)');
+    let start_number = await io.ask('File number to start from (optional): ');
+    let max_download = await io.ask('Download limit: [downloadable maximum number of files]  (optional)');
     
     let url = await io.ask('Search url:');
     while(!url){
@@ -54,7 +54,7 @@ let repeat = (str, symbol, no_of_repeat) => {
 
 let boxInfo = (msg, no_of_repeat = 1, top_symbol = '=', bottom_symbol = top_symbol) => {
     console.info('');
-    repeat(msg, top_symbol, no_of_repeat)
+    repeat(msg, top_symbol, no_of_repeat);
     console.info(msg);
     repeat(msg, bottom_symbol, no_of_repeat)
 }
