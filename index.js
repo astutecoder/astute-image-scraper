@@ -1,105 +1,75 @@
+const user_defined = require('./settings');
 const puppet = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
-
-// search url
- const url = 'https://www.google.com/search?q=plastic+bottles&rlz=1C1GGRV_enBD846BD846&source=lnms&tbm=isch&sa=X&ved=0ahUKEwjBgOOEztfjAhUaSY8KHXQgCycQ_AUIESgB';
-
- // path to the image folder
- // please make sure you have created the folder first
- const image_folder_path = 'storage/plastic bottle';
-
- // delay between to clicks, smaller value scraps fast but return less image
- // try to set the value  between 100 - 500
- const click_delay = 100; // miliseconds
-
+console.log(user_defined);
 (async () => {
     try {
-        const browser = await puppet.launch({ headless: false, defaultViewport: null });
-        const page = await browser.newPage();
-    
-        await page.goto(url, { waitUntil: 'networkidle2'});
+        const browser = await puppet.launch(
+            {
+                defaultViewport: {
+                    width: 1920,
+                    height: 1080,
+                } 
+            }
+        );
+        const page = await browser.newPage();    
+        await page.goto(user_defined.settings.url, { waitUntil: 'networkidle2'});
 
-        console.info('starting scraping');
+        console.info('scraping started');
 
-        console.time('evaluating: ');
-        let images = await page.evaluate(async (delayDuration) => {
-            const timeout  = () => (new Promise(function(resolve){
+        let imageSrc = await page.evaluate(async () => {
+            let infiniteScroll = () => {
+                return (new Promise(resolve => {
                     let interval = setInterval(function(){
-                        if(document.body.scrollHeight !== (window.innerHeight + window.scrollY - 17)){
+                        if(document.body.scrollHeight !== (window.innerHeight + window.scrollY)){
                             window.scrollTo(0, document.body.scrollHeight);
-                            console.log('if');
                         } else if(document.querySelector('#smb')){
                             document.querySelector('#smb').click(); 
                             document.querySelector('#smb').remove();
-                            console.log('else if');
                         }
                         else { 
-                            console.log('else');
                             clearInterval(interval); 
-                            resolve('done'); 
+                            resolve('done');
                         }
-                    }, 1000)
-                }));
-
-            if(await timeout() === 'done'){
-                window.scrollTo(0,0);
-
-                function makeDelay(t = 10) {
-                    return new Promise(resolve => {
-                        setTimeout(() => {
-                            resolve(true);
-                        }, t);
-                    })
-                }
-
-                const imageBoxes = Array.from(document.getElementsByClassName('rg_ic'));
-                let i = 1;
-                let imgSrc = [];
-                async function makeClick(item) {                    
-                     item.click();
-                     await makeDelay(delayDuration);
-                }
-
-                for(imageBox of imageBoxes) {
-                    imageBox.addEventListener('click', () => {
-                        console.log('click click')
-                        imgSrc.push(document.querySelectorAll('#irc_cc .irc_t.i30052 .irc_mic .irc_mimg.irc_hic')[1].querySelector('img').getAttribute('src'));
-                    }, false);
-                    await makeClick(imageBox);
-                }
-                let images = await imgSrc.filter((item, id)=>{
-                    return item !== null && (imgSrc.indexOf(item) === id);
-                })
-                return await images;
+                    }, 1000);
+                }))
             }
-        }, click_delay);
-        console.timeEnd('evaluating: ');
-        console.info('found '+ images.length + ' unique images');
-        
-        var download = async function(uri, index){
-            // var file_name = index +'_'+ uri.split('/').pop().split('?').shift();
-            var file_name = index +'.jpg';
+            
+            await infiniteScroll();
+
+            let imageBoxes = Array.from(document.querySelectorAll('a[jsname="hSRGPd"]'));
+
+            let images = [];
+            for(imageBox of imageBoxes) {
+                let href = imageBox.getAttribute('href');
+                let enc_url = String(href.split('=')[1]).replace('&imgrefurl','');
+
+                images.push(decodeURIComponent(enc_url));
+            }
+            return images;
+        });
+        await browser.close();
+
+        let download = async function(uri, file_prefix = '', start_number = 1){
+            let file_name_with_prefix = file_prefix + '_' + start_number + '.jpg';
+            let file_name_without_prefix = start_number + '.jpg';
+            let file_name = file_prefix ? file_name_with_prefix : file_name_without_prefix;
+
             request.get(uri)
                 .on('error', (e) => console.dir(e) )
-                .pipe(fs.createWriteStream(image_folder_path+'/'+file_name))
+                .pipe(fs.createWriteStream(user_defined.settings.path + '/' + file_name))
                 .on('close', () => console.log('download complete:', file_name))            
         };
-        
-        console.info('starting to download images');
-        
-        async function storeImage(msg)
-        {
-            let i = 1;
-            for(image of images){
-                await download(image, i);
-                i++;
-            }
-            console.info(msg)
-        }
-        await storeImage('Scraping complete. Please wait for event completion.')
 
-        await browser.close();
+        let downloaded = 1;
+        for(image of imageSrc){
+            await download(image, user_defined.settings.prefix, user_defined.settings.start_from);
+            user_defined.settings.start_from++;
+            if(downloaded === user_defined.settings.download_limit) break;
+            downloaded++;
+        }
+
     } catch(err) {
         console.dir(err);
     }
