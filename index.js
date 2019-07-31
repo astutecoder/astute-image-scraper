@@ -13,11 +13,11 @@ let showInputInfo = async (settings) => {
     io.write(' "Image File Prefix": "' + settings.prefix + '"');
     io.write(' "Image File Name Start From": ' + settings.start_from);
     io.write(' "Download Limit (quantity)": ' + (settings.download_limit ? settings.download_limit : '"No Limit"'));
-    io.write(' "Search URL": "' + settings.url + '"');
+    (settings.search_by === '1') ? io.write(' "Search keyword": "' + settings.keyword + '"') : io.write(' "Search URL": "' + settings.url + '"');
     io.write('}')
 }
 let askConfirmation = async () => {
-    let confirmation = (await await io.ask('Is it ok? (Y/N)')).toLowerCase();
+    let confirmation = (await io.ask('Is it ok? (Y/N)')).toLowerCase();
         
     while(!confirmation || !confirmation.match(/^(n|no|y|yes)$/) ){
         confirmation = await io.ask('Is it ok? (Y/N)');
@@ -35,7 +35,9 @@ let askConfirmation = async () => {
             settings = await user_defined.settings();
             showInputInfo(settings);
             confirmation = await askConfirmation();            
-        }         
+        }
+        
+        io.write('Processing....');
 
         const browser = await puppet.launch(
             {
@@ -83,7 +85,8 @@ let askConfirmation = async () => {
         });
         await browser.close();
 
-        user_defined.boxInfo('Total '+ imageSrc.length + ' images found', 1, '!', '¡');
+        let downloadbale_count = settings.download_limit ? settings.download_limit : 'ALL'
+        user_defined.boxInfo(`Total ${imageSrc.length} images found. Downloading ${downloadbale_count} of them.`, 1, '!', '¡');
 
         let download = (uri, file_prefix = '', start_number = 1) => {
             let file_name_with_prefix = file_prefix + '_' + start_number + '.jpg';
