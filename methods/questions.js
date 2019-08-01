@@ -71,7 +71,7 @@ let qURL = async (keyword_or_Url, source) => {
         }
     }
     return {
-        url: url.match(/^(https?:\/\/www.)/) ? url : `https://${url}`,
+        url: url.match(/^(https?:\/\/)(www.)?/) ? url : `https://${url}`,
         keyword: keyword
     }
 }

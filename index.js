@@ -23,14 +23,14 @@ const { googleImage, flickrImage } = require('./methods/image_scrapers');
         console.info('\nProcessing....\n');
         
         switch(settings.source) {
-            case '1': if(!settings.url.match(/^(https?:\/\/(www.)?google.com)(\&tbm=isch)/)){
-                boxInfo('\nYou have provided wrong URL\n', 3, '?');
+            case '1': if(!settings.url.match(/^(https?:\/\/(www.)?google.com).+(\&tbm=isch)/)){
+                boxInfo(`\nYou have provided wrong URL\n${settings.url}`, 3, '?');
                 return;
-            }
+            } break;
             case '2': if(!settings.url.match(/^(https?:\/\/(www.)?flickr.com\/search\/\?text\=)/)){
                 boxInfo('\nYou have provided wrong URL\n', 3, '?');
                 return;
-            }
+            } break;
             default: break;
         }
 
@@ -44,7 +44,7 @@ const { googleImage, flickrImage } = require('./methods/image_scrapers');
         );
         const page = await browser.newPage();    
         
-        await page.goto(settings.url, { waitUntil: 'networkidle2'});
+        await page.goto(settings.url);
 
         boxInfo('Scraping started. Please wait...', 2, '=') 
 
