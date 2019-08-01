@@ -20,19 +20,34 @@ let boxInfo = (msg, no_of_repeat = 1, top_symbol = '=', bottom_symbol = top_symb
 
 async function infiniteScroll (page) {
     await page.evaluate(async () => {
+        let loadmoreClick = (element) => {
+            if(element) {
+                element.click();
+                element.remove();
+            }
+        }
         await new Promise(resolve => {
-            let interval = setInterval(function(){
-                if(document.body.scrollHeight !== (window.innerHeight + window.scrollY)){
-                    window.scrollTo(0, document.body.scrollHeight);
-                } else if(document.querySelector('#smb')){
-                    document.querySelector('#smb').click(); 
-                    document.querySelector('#smb').remove();
+            let totalHeight = 0;
+            let distance = 100;
+            let interval = setInterval(async () => {
+                let scrolled_distance = window.innerHeight + window.scrollY + distance;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
+                
+                loadmoreClick(document.querySelector('#smb'));
+                loadmoreClick(document.querySelector('.infinite-scroll-load-more'));
+                
+                if(document.body.scrollHeight <= (scrolled_distance + 150)){
+                    window.scrollTo(0, scrolled_distance - 200);
+                    await new Promise(resolve =>{
+                        setTimeout(() => resolve(), 2500);
+                    });
                 }
-                else { 
+                if((document.body.scrollHeight <= (scrolled_distance)) && !(document.querySelector('.flickr-dots'))) { 
                     clearInterval(interval); 
                     resolve('done');
                 }
-            }, 1000);
+            }, 100);
         });
     });
 }

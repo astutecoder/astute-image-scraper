@@ -4,7 +4,7 @@ const request = require('request');
 
 const { questions, showInputInfo, askConfirmation } = require('./methods/questions');
 const { infiniteScroll, boxInfo, download } = require('./methods/helpers');
-const { googleImage } = require('./methods/image_scrapers/google_image');
+const { googleImage, flickrImage } = require('./methods/image_scrapers');
 
 
 (async () => {
@@ -12,6 +12,7 @@ const { googleImage } = require('./methods/image_scrapers/google_image');
         let settings = await questions();
         showInputInfo(settings);
         let confirmation = await askConfirmation();
+        
         while(confirmation.toLowerCase().match(/^(n|no)$/) && !confirmation.toLowerCase().match(/^(y|yes)$/)){
             boxInfo('Enter settings info one more time', 1, '-');
             settings = await questions();
@@ -19,7 +20,19 @@ const { googleImage } = require('./methods/image_scrapers/google_image');
             confirmation = await askConfirmation();
         }
         
-        console.info('Processing....');
+        console.info('\nProcessing....\n');
+        
+        switch(settings.source) {
+            case '1': if(!settings.url.match(/^(https?:\/\/(www.)?google.com)(\&tbm=isch)/)){
+                boxInfo('\nYou have provided wrong URL\n', 3, '?');
+                return;
+            }
+            case '2': if(!settings.url.match(/^(https?:\/\/(www.)?flickr.com\/search\/\?text\=)/)){
+                boxInfo('\nYou have provided wrong URL\n', 3, '?');
+                return;
+            }
+            default: break;
+        }
 
         const browser = await puppet.launch(
             {
@@ -30,18 +43,29 @@ const { googleImage } = require('./methods/image_scrapers/google_image');
             }
         );
         const page = await browser.newPage();    
+        
         await page.goto(settings.url, { waitUntil: 'networkidle2'});
 
         boxInfo('Scraping started. Please wait...', 2, '=') 
 
         await infiniteScroll(page);
         
-        let imageSrc = await googleImage(page);
-        
+        let imageSrc = [];
+        switch (settings.source) {
+            case '1'    : imageSrc = await googleImage(page); break;
+            case '2'    : imageSrc = await flickrImage(page, settings.download_limit); break;
+            default     : imageSrc = await googleImage(page); break;
+        }
+
         await browser.close();
 
-        let downloadbale_count = settings.download_limit ? settings.download_limit : 'ALL'
-        boxInfo(`Total ${imageSrc.length} images found. Downloading ${downloadbale_count} of them.`, 1, '!', '¡');
+        if(!imageSrc.length) {
+            boxInfo('\nSome thing went wrong. Please Try again later\n', 1, '/', '\\');
+            return;
+        }
+        
+        let downloadbale_count = settings.download_limit ? settings.download_limit : 'ALL';
+        boxInfo(`Total ${imageSrc.length} images found. Downloading ${ typeof downloadbale_count !== 'number' || (downloadbale_count <= imageSrc.length) ? downloadbale_count : imageSrc.length } of them.`, 1, '!', '¡');
 
         let downloaded = 1;
         for(image of imageSrc){
@@ -53,5 +77,6 @@ const { googleImage } = require('./methods/image_scrapers/google_image');
 
     } catch(err) {
         boxInfo(err.message, '1', "x");
+        return;
     }
 })();

@@ -13,6 +13,20 @@ let multiLevelFolderCreate = (path) => {
     }
 }
 
+let qSource = async () => {
+    console.log('Select source website:');
+    console.log('1. Google');
+    console.log('2. Flickr');
+    let source = await io.ask('your answer is: (1/2)')
+    
+    while(!source.match(/^(1|2)$/)){
+        source = await io.ask('your answer is: (1/2)')
+    }
+    io.write(' ');
+
+    return source;
+}
+
 let qKeywordOrUrl = async () => {
     console.log('What will you provide to search images?');
     console.log('1. Keyword');
@@ -37,14 +51,19 @@ let qImageFolderPath = async () => {
     return image_folder_path;
 }
 
-let qURL = async (keyword_or_Url) => {
+let qURL = async (keyword_or_Url, source) => {
     let url, keyword = '';
     if(keyword_or_Url === '1') {
         keyword = await io.ask('Search keyword: ');
         while(!keyword){
             keyword = await io.ask('Search keyword: (mandatory)')
         }
-        url = `https://www.google.com/search?q=${encodeURIComponent(keyword)}&tbm=isch`
+        switch(source){
+            case '1'    : url = `https://www.google.com/search?q=${encodeURIComponent(keyword)}&tbm=isch`; break;
+            case '2'    : url = `https://www.flickr.com/search/?text=${encodeURIComponent(keyword)}&view_all=1`; break;
+            default     : url = `https://www.google.com/search?q=${encodeURIComponent(keyword)}&tbm=isch`; break;
+        }
+            
     }else {
         url = await io.ask('Search url:');
         while(!url){
@@ -52,7 +71,7 @@ let qURL = async (keyword_or_Url) => {
         }
     }
     return {
-        url: url,
+        url: url.match(/^(https?:\/\/www.)/) ? url : `https://${url}`,
         keyword: keyword
     }
 }
@@ -60,14 +79,16 @@ let qURL = async (keyword_or_Url) => {
 let questions = async () => {
     multiLevelFolderCreate('images')
     
+    let source = await qSource();
     let keyword_or_Url = await qKeywordOrUrl();
     let image_folder_path = await qImageFolderPath();    
     let name_prefix = await io.ask('File name prifix? (optional)');
     let start_number = await io.ask('File number to start from (optional):');
     let max_download = await io.ask('Download limit: [downloadable maximum number of files] (optional)');
-    let url_and_keyword = await qURL(keyword_or_Url);   
+    let url_and_keyword = await qURL(keyword_or_Url, source);   
 
     return({
+            source: source,
             search_by: keyword_or_Url,
             keyword: url_and_keyword.keyword,
             url: url_and_keyword.url,
