@@ -1,5 +1,5 @@
 # Image scraper
-***
+---
 This program is only for educational purposes.
 
 ### Installation
