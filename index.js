@@ -1,1 +1,82 @@
-const puppet=require("puppeteer"),fs=require("fs"),request=require("request"),io=require("console-read-write"),user_defined=require("./settings");let showInputInfo=async e=>{user_defined.boxInfo("Your settings are as follows:",1,".",";"),io.write(""),io.write("{"),io.write(' "Image Folder": "'+e.path+'"'),io.write(' "Image File Prefix": "'+e.prefix+'"'),io.write(' "Image File Name Start From": '+e.start_from),io.write(' "Download Limit (quantity)": '+(e.download_limit?e.download_limit:'"No Limit"')),"1"===e.search_by?io.write(' "Search keyword": "'+e.keyword+'"'):io.write(' "Search URL": "'+e.url+'"'),io.write("}")},askConfirmation=async()=>{let e=(await io.ask("Is it ok? (Y/N)")).toLowerCase();for(;!e||!e.match(/^(n|no|y|yes)$/);)e=await io.ask("Is it ok? (Y/N)");return e};(async()=>{try{let e=await user_defined.settings();showInputInfo(e);let t=await askConfirmation();for(;t.toLowerCase().match(/^(n|no)$/)&&!t.toLowerCase().match(/^(y|yes)$/);)user_defined.boxInfo("Enter settings info one more time",1,"-"),e=await user_defined.settings(),showInputInfo(e),t=await askConfirmation();io.write("Processing....");const o=await puppet.launch({defaultViewport:{width:1920,height:1080}}),i=await o.newPage();await i.goto(e.url,{waitUntil:"networkidle2"}),user_defined.boxInfo("Scraping started. Please wait...",2,"=");let r=await i.evaluate(async()=>{await(()=>new Promise(e=>{let t=setInterval(function(){document.body.scrollHeight!==window.innerHeight+window.scrollY?window.scrollTo(0,document.body.scrollHeight):document.querySelector("#smb")?(document.querySelector("#smb").click(),document.querySelector("#smb").remove()):(clearInterval(t),e("done"))},1e3)}))();let e=Array.from(document.querySelectorAll('a[jsname="hSRGPd"]')),t=[];for(imageBox of e){let e=imageBox.getAttribute("href"),o=String(e.split("=")[1]).replace("&imgrefurl","");t.push(decodeURIComponent(o))}return t});await o.close();let a=e.download_limit?e.download_limit:"ALL";user_defined.boxInfo(`Total ${r.length} images found. Downloading ${a} of them.`,1,"!","¡");let n=(t,o="",i=1)=>{let r=o?o+"_"+i+".jpg":i+".jpg";request.get(t).on("error",e=>user_defined.boxInfo(e.message,1,"x")).pipe(fs.createWriteStream(e.path+"/"+r)).on("close",()=>console.log("download complete:",r))},s=1;for(image of r){if(await n(image,e.prefix,e.start_from),s===e.download_limit)break;e.start_from++,s++}}catch(e){user_defined.boxInfo(e.message,"1","x")}})();
+const puppet = require('puppeteer');
+const fs = require('fs');
+const request = require('request');
+
+const { questions, showInputInfo, askConfirmation } = require('./methods/questions');
+const { infiniteScroll, boxInfo, download } = require('./methods/helpers');
+const { googleImage, flickrImage } = require('./methods/image_scrapers');
+
+
+(async () => {
+    try {
+        let settings = await questions();
+        showInputInfo(settings);
+        let confirmation = await askConfirmation();
+        
+        while(confirmation.toLowerCase().match(/^(n|no)$/) && !confirmation.toLowerCase().match(/^(y|yes)$/)){
+            boxInfo('Enter settings info one more time', 1, '-');
+            settings = await questions();
+            showInputInfo(settings);
+            confirmation = await askConfirmation();
+        }
+        
+        console.info('\nProcessing....\n');
+        
+        switch(settings.source) {
+            case '1': if(!settings.url.match(/^(https?:\/\/(www.)?google.com).+(\&tbm=isch)/)){
+                boxInfo(`\nYou have provided wrong URL\n${settings.url}`, 3, '?');
+                return;
+            } break;
+            case '2': if(!settings.url.match(/^(https?:\/\/(www.)?flickr.com\/search\/\?text\=)/)){
+                boxInfo('\nYou have provided wrong URL\n', 3, '?');
+                return;
+            } break;
+            default: break;
+        }
+
+        const browser = await puppet.launch(
+            {
+                defaultViewport: {
+                    width: 1920,
+                    height: 1080,
+                } 
+            }
+        );
+        const page = await browser.newPage();    
+        
+        await page.goto(settings.url);
+
+        boxInfo('Scraping started. Please wait...', 2, '=') 
+
+        await infiniteScroll(page);
+        
+        let imageSrc = [];
+        switch (settings.source) {
+            case '1'    : imageSrc = await googleImage(page); break;
+            case '2'    : imageSrc = await flickrImage(page, settings.download_limit); break;
+            default     : imageSrc = await googleImage(page); break;
+        }
+
+        await browser.close();
+
+        if(!imageSrc.length) {
+            boxInfo('\nSome thing went wrong. Please Try again later\n', 1, '/', '\\');
+            return;
+        }
+        
+        let downloadbale_count = settings.download_limit ? settings.download_limit : 'ALL';
+        boxInfo(`Total ${imageSrc.length} images found. Downloading ${ typeof downloadbale_count !== 'number' || (downloadbale_count <= imageSrc.length) ? downloadbale_count : imageSrc.length } of them.`, 1, '!', '¡');
+
+        let downloaded = 1;
+        for(image of imageSrc){
+            await download(image, settings.path, settings.prefix, settings.start_from, request, fs);            
+            if(downloaded === settings.download_limit) break;            
+            settings.start_from++;
+            downloaded++;
+        }
+
+    } catch(err) {
+        boxInfo(err.message, '1', "x");
+        return;
+    }
+})();
