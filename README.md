@@ -1,18 +1,18 @@
-#Image scraper
+# Image scraper
 ***
 This program is only for educational purposes.
 
-###Installation
+### Installation
 ---
 + Install Node.js (skip if already installed)
 + donwload / clone this project
 + locate project folder in command line (terminal / command prompt)
 + run command `npm install`
 
-###Runing application
+### Runing application
 To run this application, open terminal in project folder location and run command `node .`
 
-###Disclaimer
+### Disclaimer
 ---
 This program lets you download tons of images from Google and Flickr. Please do not download or use any image that violates its copyright terms.Google, Flickr does NOT produce its own images and, as such, it doesn't own copyright on any of them. The original creators of the images own the copyrights.
 
